@@ -1,19 +1,22 @@
 const phantom = require('phantom');
 const fs =require('fs');
 const timeout=require('./timeout')
-
-
+//进度条
 let bar;
-
+//任务列表
 let missionList=[];
-
+//允许的同时并发任务数
 const threadCount=3;
+//显示未完成文章个数
 const showTitleSize=10;
-const lineWidth=40;
+//失败重试次数
 const retryTime=3;
+//代理端口
 const proxyPort=8001;
+//web端口
 const webPort=8002;
 
+//工作的异步方法，负责重试
 async function thread(){
     while(true){
         let item=getItem();
@@ -25,7 +28,6 @@ async function thread(){
                     return savePDF(item.name,item.url,obj);
                 },30000).catch(err=>{
                     error=true;
-                    console.log(err);
                 });
                 if(!error)
                     break;
@@ -43,15 +45,16 @@ async function thread(){
         await new Promise(resolve=>{setTimeout(resolve,500)});
     }
 }
-
+//启动异步方法
 function startThread(){
     for(let i=0;i<threadCount;i++){
         thread().then(()=>{});
     }
 }
+
+//从列表中取出一个item 会异步执行 上了锁
 let itemGetting=false;
 let itemIndex=0;
-
 function getItem(){
     if(itemGetting)
         return null;
@@ -62,32 +65,12 @@ function getItem(){
     itemGetting=false;
     return item;
 }
-let emptyStr='';
-for(let i=0;i<lineWidth;i++){
-    emptyStr+=' ';
-}
-function getOrderedName(name){
-    let length=0;
-    let index=0;
-    for(let c of name){
-        if(/[\u4E00-\u9FA5\uF900-\uFA2D\uFF00-\uFFEF]/.test(c)){
-            length+=2;
-        }else{
-            length+=1;
-        }
-        if(length>lineWidth){
-            break;
-        }
-        index++;
-    }
-    let sub=name.substring(0,index);
-    while(sub.length<lineWidth){
-        sub+=' ';
-    }
-    return sub;
-}
-//console.log(getOrderedName('我的我的我我的我的我我的我的我我的我的我我的我的我我的我的我111222'))
-//return;
+
+/**
+ * 促使任务进度
+ * @param count
+ * 完成任务数
+ */
 function tick(count){
     if(!bar){
         if(missionList.length==0)
@@ -96,7 +79,6 @@ function tick(count){
             total:missionList.length,
             done:0
         }
-        console.log('\033[2J');
         startThread();
     }
     console.log('\033[2J');
@@ -113,9 +95,7 @@ function tick(count){
                 continue;
             }
             let name=missionList[index].name;
-            str+='\n'+getOrderedName(name);
-        }else{
-            str+='\n'+emptyStr
+            str+='\n'+name;
         }
         index++;
         showCount++;
@@ -123,6 +103,15 @@ function tick(count){
     console.log(str);
 }
 
+/**
+ * 公众号页面img等待懒加载结束
+ * @param page
+ * page引用
+ * @param obj
+ * timeout obj
+ * @returns {Promise<boolean>}
+ * 直到完成返回true 否则会在timeout触发phantom exit之后false
+ */
 async function checkImgDone(page,obj){
     while(!obj.cancel){
         let error=false;
@@ -149,6 +138,17 @@ async function checkImgDone(page,obj){
     }
 }
 
+/**
+ * 保存pdf
+ * @param name
+ * 文件名
+ * @param url
+ * 链接
+ * @param obj
+ * timeout obj
+ * @returns {Promise<any>}
+ *
+ */
 function savePDF(name,url,obj){
 
     //console.log('开始保存：'+name);
@@ -200,10 +200,21 @@ function savePDF(name,url,obj){
 
 }
 
+/**
+ * html转义 并删除\
+ * @param a
+ * @returns {string}
+ */
 function unescapeHTML(a){
     a = "" + a;
     return a.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/&nbsp;/g,' ').replace(/\\/g,'');
 }
+
+/**
+ * 去除文件名禁用字符
+ * @param name
+ * @returns {void | string | never}
+ */
 function replaceFileName(name){
     return name.replace(/[\\\\/:*?\"<>| ]/g,'')
 }
@@ -218,6 +229,7 @@ const options = {
     rule:{
         beforeSendResponse(requestDetail, responseDetail){
             if(requestDetail.url.startsWith('https://mp.weixin.qq.com/mp/profile_ext')){
+                //该接口第一次返回html文件，数据在html中，第二次起，数据为json
                 let body=responseDetail.response.body.toString();
                 let obj;
                 try{
@@ -231,6 +243,7 @@ const options = {
                         index+=startStr.length;
                         let lastIndex=body.indexOf('\'',index);
                         if(lastIndex>=0){
+                            //分离数据并且转义
                             let str=unescapeHTML(body.substring(index,lastIndex))
                             //console.log(str.substring(16500,17000))
                             obj=JSON.parse(str);
@@ -239,8 +252,13 @@ const options = {
                 }
                 if(obj){
                     for(let item of obj.list||[]){
-                        missionList.push({name:replaceFileName(unescapeHTML(item.app_msg_ext_info.title)),url:unescapeHTML(item.app_msg_ext_info.content_url)});
+                        //html中的数据被2层转义了&符号，将再进行一次转义
+                        missionList.push({
+                            name:replaceFileName(unescapeHTML(item.app_msg_ext_info.title)),
+                            url:unescapeHTML(item.app_msg_ext_info.content_url)
+                        });
                     }
+                    //触发进度
                     tick(0);
                 }
             }
