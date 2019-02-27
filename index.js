@@ -9,6 +9,8 @@ let missionList=[];
 const threadCount=3;
 //显示未完成文章个数
 const showTitleSize=10;
+//显示标题最大长度
+const showTitleLength=40;
 //失败重试次数
 const retryTime=3;
 //代理端口
@@ -22,12 +24,19 @@ async function thread(){
         let item=getItem();
         if(item){
             let time=0;
+            if(item.name.length==10)
+                console.log('eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'+JSON.stringify(item.raw))
+            let output='./export/'+item.name+'.pdf';
             while(time<retryTime){
                 let error=false;
                 await timeout((obj)=>{
-                    return savePDF(item.name,item.url,obj);
+                    return savePDF(output,item.url,obj);
                 },30000).catch(err=>{
                     error=true;
+                    //失败时删除文件
+                    if(fs.existsSync(output)){
+                        fs.unlinkSync(output);
+                    }
                 });
                 if(!error)
                     break;
@@ -95,7 +104,9 @@ function tick(count){
                 continue;
             }
             let name=missionList[index].name;
-            str+='\n'+name;
+            str+='\n'+name.substring(0,showTitleLength);
+        }else{
+            str+='\n'
         }
         index++;
         showCount++;
@@ -149,13 +160,9 @@ async function checkImgDone(page,obj){
  * @returns {Promise<any>}
  *
  */
-function savePDF(name,url,obj){
-
-    //console.log('开始保存：'+name);
+function savePDF(output,url,obj){
     return new Promise((resolve,reject)=>{
-        let output='./export/'+name+'.pdf'
         if(fs.existsSync(output)){
-            //console.log('发现重复，跳过：'+name);
             resolve();
             return;
         }
@@ -188,13 +195,19 @@ function savePDF(name,url,obj){
                             page.render(output).then(function(){
                                 ph.exit();
                                 resolve();
+                            }).catch(err=>{
+                                reject(err);
                             })
                         });
                     }).catch(err=>{
                         reject(err);
                     })
                 });
+            }).catch(err=>{
+                reject(err);
             });
+        }).catch(err=>{
+            reject(err);
         });
     })
 
@@ -254,8 +267,9 @@ const options = {
                     for(let item of obj.list||[]){
                         //html中的数据被2层转义了&符号，将再进行一次转义
                         missionList.push({
-                            name:replaceFileName(unescapeHTML(item.app_msg_ext_info.title)),
-                            url:unescapeHTML(item.app_msg_ext_info.content_url)
+                            name:replaceFileName(unescapeHTML(item.app_msg_ext_info.title)+item.comm_msg_info.id),
+                            url:unescapeHTML(item.app_msg_ext_info.content_url),
+                            raw:item
                         });
                     }
                     //触发进度
