@@ -10,7 +10,6 @@
   "license": "ISC",
   "dependencies": {
     "anyproxy": "^4.0.12",
-    "ascii-progress": "^1.0.5",
     "phantom": "^6.0.3"
   }
 }

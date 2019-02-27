@@ -1,6 +1,5 @@
 const phantom = require('phantom');
 const fs =require('fs');
-const ProgressBar=require('ascii-progress')
 const timeout=require('./timeout')
 
 
@@ -10,7 +9,7 @@ let missionList=[];
 
 const threadCount=3;
 const showTitleSize=10;
-const lineWidth=60;
+const lineWidth=40;
 const retryTime=3;
 const proxyPort=8001;
 const webPort=8002;
@@ -93,20 +92,18 @@ function tick(count){
     if(!bar){
         if(missionList.length==0)
             return;
-        bar = new ProgressBar({
-            current: 0,
+        bar={
             total:missionList.length,
-            schema:'[:bar.cyan] :current/:total :percent 已完成文章'
-        });
+            done:0
+        }
         console.log('\033[2J');
         startThread();
     }
-    console.log('\033[0f');
+    console.log('\033[2J');
     bar.total=missionList.length;
-    bar.completed=false;
-    bar.tick(count);
-    console.log('\033[0f');
-    let str='';
+    bar.done+=count;
+    console.log(`完成文章数：${bar.done}/${bar.total}`)
+    let str='\n待完成文章：';
     let showCount=0;
     let index=0;
     while(showCount<showTitleSize){
