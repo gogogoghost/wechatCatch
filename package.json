@@ -1,0 +1,16 @@
+{
+  "name": "wechatcatch",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "anyproxy": "^4.0.12",
+    "ascii-progress": "^1.0.5",
+    "phantom": "^6.0.3"
+  }
+}
