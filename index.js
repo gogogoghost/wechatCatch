@@ -286,7 +286,7 @@ const options = {
                                 subList.push({
                                     title:item.child[j].title,
                                     url:item.child[j].content_url,
-                                    id:item.id+':'+j
+                                    id:item.id+'-'+j
                                 })
                             }
                             list.splice(i,0,...subList)

@@ -7,5 +7,5 @@
 生成的PDF文件命名规则为
 
 ```js
-return `${page.id}${page.isSubPage?':'+page.subIndex:''}${page.title}.pdf`
+return `${page.id}${page.isSubPage?'-'+page.subIndex:''}${page.title}.pdf`
 ```
