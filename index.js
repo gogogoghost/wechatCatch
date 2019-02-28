@@ -24,22 +24,23 @@ async function thread(){
         let item=getItem();
         if(item){
             let time=0;
-            if(item.name.length==10)
-                console.log('eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'+JSON.stringify(item.raw))
             let output='./export/'+item.name+'.pdf';
             while(time<retryTime){
                 let error=false;
                 await timeout((obj)=>{
                     return savePDF(output,item.url,obj);
                 },30000).catch(err=>{
-                    error=true;
-                    //失败时删除文件
-                    if(fs.existsSync(output)){
-                        fs.unlinkSync(output);
-                    }
                 });
-                if(!error)
-                    break;
+                //检查文件是否满足成功条件
+                let exists=fs.existsSync(output);
+                if(exists){
+                    let stat=fs.statSync(output);
+                    if(stat.size<4096){
+                        fs.unlinkSync(output);
+                    }else{
+                        break;
+                    }
+                }
                 time++;
             }
             if(time==retryTime){
@@ -296,8 +297,7 @@ const options = {
                         if(list[i].title&&list[i].url){
                             missionList.push({
                                 name:list[i].id+replaceFileName(unescapeHTML(list[i].title)),
-                                url:unescapeHTML(list[i].url),
-                                raw:list[i]
+                                url:unescapeHTML(list[i].url)
                             });
                         }
                     }
