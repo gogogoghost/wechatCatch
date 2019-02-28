@@ -1,4 +1,4 @@
-##wechatCatch
+## wechatCatch
 
 自用版公众号抓取工具，生成PDF
 
