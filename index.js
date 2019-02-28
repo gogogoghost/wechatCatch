@@ -264,13 +264,42 @@ const options = {
                     }
                 }
                 if(obj){
-                    for(let item of obj.list||[]){
+                    let list=obj.list||[];
+                    //console.log(list);
+                    let time=0;
+                    for(let i=0;i<list.length;i++){
+                        if(list[i].app_msg_ext_info){
+                            //该item有2层
+                            list[i]={
+                                title:list[i].app_msg_ext_info.title,
+                                url:list[i].app_msg_ext_info.content_url,
+                                id:list[i].comm_msg_info.id,
+                                child:list[i].app_msg_ext_info.is_multi?list[i].app_msg_ext_info.multi_app_msg_item_list:null
+                            };
+                        }
+                        //如果有成员 释放成员
+                        let item =list[i];
+                        if(item.child){
+                            let subList=[];
+                            for(let j=0;j<item.child.length;j++){
+                                subList.push({
+                                    title:item.child[j].title,
+                                    url:item.child[j].content_url,
+                                    id:item.id+':'+j
+                                })
+                            }
+                            list.splice(i,0,...subList)
+                            item.child=null;
+                        }
+                        //此处之后不能使用item 因为list已经错位
                         //html中的数据被2层转义了&符号，将再进行一次转义
-                        missionList.push({
-                            name:replaceFileName(unescapeHTML(item.app_msg_ext_info.title)+item.comm_msg_info.id),
-                            url:unescapeHTML(item.app_msg_ext_info.content_url),
-                            raw:item
-                        });
+                        if(list[i].title&&list[i].url){
+                            missionList.push({
+                                name:list[i].id+replaceFileName(unescapeHTML(list[i].title)),
+                                url:unescapeHTML(list[i].url),
+                                raw:list[i]
+                            });
+                        }
                     }
                     //触发进度
                     tick(0);
