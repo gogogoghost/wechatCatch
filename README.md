@@ -24,3 +24,5 @@ $ node index
 ```js
 return `${page.id}${page.isSubPage?'-'+page.subIndex:''}${page.title}.pdf`
 ```
+
+运行期间按Enter可以使ERROR的文章变为RETRY
