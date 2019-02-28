@@ -1,8 +1,7 @@
 const phantom = require('phantom');
 const fs =require('fs');
 const timeout=require('./timeout')
-//进度条
-let bar;
+
 //任务列表
 let missionList=[];
 //允许的同时并发任务数
@@ -23,6 +22,7 @@ async function thread(){
     while(true){
         let item=getItem();
         if(item){
+            item.retry=false;
             let time=0;
             let output='./export/'+item.name+'.pdf';
             while(time<retryTime){
@@ -45,18 +45,18 @@ async function thread(){
             }
             if(time==retryTime){
                 item.error=true;
-                console.log(item);
-                console.log('重试3次出错')
+                tick()
             }else{
                 item.done=true;
+                tick()
             }
-            tick(1)
         }
         await new Promise(resolve=>{setTimeout(resolve,500)});
     }
 }
 //启动异步方法
 function startThread(){
+    missionRunning=true;
     for(let i=0;i<threadCount;i++){
         thread().then(()=>{});
     }
@@ -69,32 +69,41 @@ function getItem(){
     if(itemGetting)
         return null;
     itemGetting=true;
+    //干正事，先查找重试的
+    for(let mission of missionList){
+        if(mission.retry){
+            itemGetting=false;
+            mission.retry=false;
+            return mission;
+        }
+    }
+    //没有找到，正常获取
     let item=missionList[itemIndex];
     if(item)
         itemIndex++;
+    //干正事结束
     itemGetting=false;
     return item;
 }
-
+let missionRunning=false;
 /**
  * 促使任务进度
  * @param count
  * 完成任务数
  */
-function tick(count){
-    if(!bar){
+function tick(){
+    if(!missionRunning){
         if(missionList.length==0)
             return;
-        bar={
-            total:missionList.length,
-            done:0
-        }
         startThread();
     }
     console.log('\033[2J');
-    bar.total=missionList.length;
-    bar.done+=count;
-    console.log(`完成文章数：${bar.done}/${bar.total}`)
+    let done=0;
+    for(let mission of missionList){
+        if(mission.done)
+            done++;
+    }
+    console.log(`完成文章数：${done}/${missionList.length}`)
     let str='\n待完成文章：';
     let showCount=0;
     let index=0;
@@ -106,6 +115,10 @@ function tick(count){
             }
             let name=missionList[index].name;
             str+='\n'+name.substring(0,showTitleLength);
+            if(missionList[index].error)
+                str+='[ERROR]'
+            else if(missionList[index].retry)
+                str+='[RETRY]'
         }else{
             str+='\n'
         }
@@ -295,14 +308,29 @@ const options = {
                         //此处之后不能使用item 因为list已经错位
                         //html中的数据被2层转义了&符号，将再进行一次转义
                         if(list[i].title&&list[i].url){
-                            missionList.push({
-                                name:list[i].id+replaceFileName(unescapeHTML(list[i].title)),
-                                url:unescapeHTML(list[i].url)
-                            });
+                            let name=list[i].id+replaceFileName(unescapeHTML(list[i].title));
+                            //check found
+                            let found=false;
+                            for(let mission of missionList){
+                                if(mission.name==name){
+                                    found=true;
+                                    if(!mission.done&&mission.error){
+                                        mission.error=false;
+                                        mission.retry=true;
+                                    }
+                                    break;
+                                }
+                            }
+                            if(!found){
+                                missionList.push({
+                                    name:name,
+                                    url:unescapeHTML(list[i].url)
+                                });
+                            }
                         }
                     }
                     //触发进度
-                    tick(0);
+                    tick();
                 }
             }
             return new Promise((resolve)=>{
@@ -331,9 +359,19 @@ function getIPAdress(){
 const proxyServer = new AnyProxy.ProxyServer(options);
 
 proxyServer.on('ready', () => {
+    console.log('\033[2J');
     console.log('IP:'+getIPAdress());
     console.log('Proxy Port:'+proxyPort);
     console.log('Web Port:'+webPort);
+    process.stdin.on('data',(input)=>{
+        for(let mission of missionList){
+            if(mission.error&&!mission.retry){
+                mission.retry=true;
+                mission.error=false;
+            }
+        }
+        tick();
+    })
 });
 proxyServer.on('error', (e) => { /* */ });
 proxyServer.start();
