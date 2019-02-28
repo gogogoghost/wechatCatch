@@ -8,7 +8,7 @@ let missionList=[];
 //允许的同时并发任务数
 const threadCount=3;
 //显示未完成文章个数
-const showTitleSize=10;
+const showTitleSize=15;
 //显示标题最大长度
 const showTitleLength=40;
 //失败重试次数
