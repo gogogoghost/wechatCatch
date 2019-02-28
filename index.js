@@ -180,7 +180,14 @@ function savePDF(output,url,obj){
             resolve();
             return;
         }
-        phantom.create().then(function(ph) {
+        let noLog=()=>{}
+        phantom.create([],{
+            logger:{
+                warn:noLog,
+                debug:noLog,
+                error:noLog
+            }
+        }).then(function(ph) {
             obj.cancelFunc=()=>{
                 ph.exit();
                 reject('closed by timeout!');
